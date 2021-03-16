@@ -580,7 +580,8 @@ function _M:tooltip(x, y, seen_by)
 	if pfactlevel < 0 then pfactcolor, pfactstate = "#LIGHT_RED#", "hostile"
 	elseif pfactlevel > 0 then pfactcolor, pfactstate = "#LIGHT_GREEN#", "friendly"
 	end
-	if game.player ~= self then ts:add(true, "Personal reaction: ") ts:merge(pfactcolor:toTString()) ts:add(("%s, %d"):format(pfactstate, pfactlevel), {"color", "WHITE"}) end
+	-- MOD: show pfact only when pfact is different from faction
+	if game.player ~= self and factlevel ~= pfactlevel then ts:add(true, "Personal reaction: ") ts:merge(pfactcolor:toTString()) ts:add(("%s, %d"):format(pfactstate, pfactlevel), {"color", "WHITE"}) end
 
 	-- MOV: target
 	if self ~= game.player then
