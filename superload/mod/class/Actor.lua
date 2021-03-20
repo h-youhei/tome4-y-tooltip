@@ -33,7 +33,8 @@ local function colorPercent(percent, offset)
 end
 
 local offense_color = "#FFD700#"
-local defense_color = "#0080FF#"
+-- local defense_color = "#0080FF#"
+local defense_color = "#0090FF#"
 local function addDamageList(ts, list)
 	table.sort(list, function(a, b)
 		if a.type == "all" then return true
@@ -145,6 +146,11 @@ function _M:tooltip(x, y, seen_by)
 	if show('size') then
 		ts:add(true, "Size: ", self:TextSizeCategory())
 	end
+	-- ogre_wield self:attr("allow_mainhand_2h_in_1h")
+-- 	sand-drake/swallow
+-- 	artifice/rogue's tools/grappling hook
+-- 	you shall be my weapon
+-- 	grappling/clinch
 
 	-- level rank
 	-- level
@@ -160,9 +166,7 @@ function _M:tooltip(x, y, seen_by)
 
 	-- classes
 	if self.descriptor and self.descriptor.classes then
-		ts:add(true)
-		ts:merge(rank_color:toTString())
-		ts:add(_t"Class: ", table.concat(table.ts(self.descriptor.classes or {}, "birth descriptor name"), ", "))
+		ts:add(true, {"color", "SALMON"}, _t"Class: ", table.concat(table.ts(self.descriptor.classes or {}, "birth descriptor name"), ", "))
 		ts:add({"color", "WHITE"})
 	end
 
@@ -181,7 +185,8 @@ function _M:tooltip(x, y, seen_by)
 	end
 
 	-- invulnerability
-	if self:attr("invulnerable") then ts:add(true, {"color", "PURPLE"}, "INVULNERABLE!") end
+	if self:attr("invulnerable") then ts:add(true, {"color", "PURPLE"}, "INVULNERABLE!")
+	end
 
 	-- hp (ratio) +regen (+heal mod) [die]
 	-- hp
@@ -249,6 +254,71 @@ function _M:tooltip(x, y, seen_by)
 	-- stats
 	--ts:add(("Stats: %d / %d / %d / %d / %d / %d"):format(self:getStr(), self:getDex(), self:getCon(), self:getMag(), self:getWil(), self:getCun()), true)
 
+	-- empty line for readability
+	ts:add(true)
+	-- ADD: increased damage
+	local damages = {}
+	for t, v in pairs(self.inc_damage) do
+		local dam = self:combatGetDamageIncrease(t)
+		if math.abs(dam) > getThreshold('damage_mod') then
+			damages[#damages+1] = { type = t, v = dam }
+		end
+	end
+	if #damages > 0 then
+		ts:add(true, offense_color, "Damage#WHITE#:")
+		addDamageList(ts, damages)
+	end
+
+	-- ADD: damage penetration
+	local penetrations = {}
+	for t, v in pairs(self.resists_pen) do
+		local pen = self:combatGetResistPen(t)
+		if pen > getThreshold('damage_pen') then
+			penetrations[#penetrations+1] = { type = t, v = pen }
+		end
+	end
+	if #penetrations > 0 then
+		ts:add(true, offense_color, "Penetration#WHITE#:")
+		addDamageList(ts, penetrations)
+	end
+
+	-- MOV: damage resists
+	-- MOD: color
+	local resists = {}
+	for t, v in pairs(self.resists) do
+		local res = (t == "absolute") and v or self:combatGetResist(t)
+		if math.abs(res) > getThreshold('damage_resist') then
+			resists[#resists+1] = { type = t, v = res }
+		end
+	end
+	if #resists > 0 then
+		ts:add(true, defense_color, "Resist#WHITE#:")
+		addDamageList(ts, resists)
+	end
+	-- Terrasca?
+	if self:attr("speed_resist") then
+		local res = 100 - (util.bound(self.global_speed * self.movement_speed, (100-(self.speed_resist_cap or 70))/100, 1)) * 100
+		if res > 0 then
+			ts:add({"color", "LIGHT_GREEN"}, tostring(math.floor(res)).."%", " ", {"color", "SALMON"}, "from speed", {"color", "LAST"}, true)
+		end
+	end
+
+	-- ADD: damage affinities
+	local affinities = {}
+	for t,v in pairs(self.damage_affinity) do
+		local aff = self:combatGetAffinity(t)
+		if aff > getThreshold('damage_affinity') then
+			affinities[#affinities+1] = { type = t, v = aff }
+		end
+	end
+	if #affinities > 0 then
+		ts:add(true, defense_color, "Affinity#WHITE#:")
+		addDamageList(ts, affinities)
+	end
+
+	-- empty line for readability
+	if #damages > 0 or #penetrations > 0 or #resists > 0 or #affinities > 0 then ts:add(true) end
+
 	-- ADD: Speed
 	local gspeed = self.global_speed*100
 	local mvspeed = self.movement_speed*100
@@ -290,65 +360,31 @@ function _M:tooltip(x, y, seen_by)
 		end
 	end
 
-	-- ADD: status immunity
-	-- TODO: configurable
-	local immune_types = {"stun", "confusion", "poison", "disease", "blind", "silence", "disarm", "cut", "pin", "sleep", "fear", "knockback", "stone", "teleport", "instakill"}
-	local immunes = {}
-
-	for _, type in pairs(immune_types) do
-		local v = self:attr(type.."_immune")
-		local threshold = getThreshold('immunity')
-		if v and v*100 > threshold then
-			immunes[#immunes+1] = {type=type, v=math.floor(v*100)}
-		end
+	-- ADD: crit rate
+	local phcrit = self:combatCrit(nil)
+	local spcrit = self:combatSpellCrit()
+	local mcrit = self:combatMindCrit()
+	ts:add(true, offense_color, ("Crit#WHITE#: %d%%"):tformat(phcrit))
+	if phcrit ~= spcrit then
+		ts:add((", Spell %d%%"):tformat(spcrit))
 	end
-	if #immunes > 0 then
-		-- table.sort(immunes, function(a, b) return a.v > b.v end)
-		ts:add(true, defense_color, "Immunity#WHITE#:")
-		local first = true
-		for _, t in pairs(immunes) do
-			if not first then ts:add(",") end
-			first = false
-			local color = "#WHITE#"
-			if t.type == "confusion" or t.type == "silence" or t.type == "sleep" or t.type == "fear" then
-				color = "#YELLOW#"
-			elseif t.type == "disease" then
-				color = "#OLIVE_DRAB#"
-			elseif t.type == "stone" or t.type == "teleport" then
-				color = "#DARK_ORCHID#"
-			end
-			ts:add((" %s%s #WHITE#%d%%"):tformat(color, t.type:capitalize(), t.v))
-		end
+	if phcrit ~= mcrit then
+		ts:add((", Mind %d%%"):tformat(mcrit))
 	end
-
-	-- power, save
-	ts:add(true, offense_color, "P. power#FFFFFF#: ", self:colorStats("combatPhysicalpower"))
-	ts:add("  ", defense_color, "P. save#FFFFFF#: ", self:colorStats("combatPhysicalResist"))
-	ts:add(true, offense_color, "S. power#FFFFFF#: ", self:colorStats("combatSpellpower"))
-	ts:add("  ", defense_color, "S. save#FFFFFF#: ", self:colorStats("combatSpellResist"))
-	ts:add(true, offense_color, "M. power#FFFFFF#: ", self:colorStats("combatMindpower"))
-	ts:add("  ", defense_color, "M. save#FFFFFF#: ", self:colorStats("combatMentalResist"))
-	-- ADD: steam power
 	if self:knowTalent(self.T_STEAM_POOL) then
-		ts:add(true, offense_color, "Steam.power#FFFFFF#: ", self:colorStats("combatSteampower"))
+		local stcrit = self:combatSteamCrit()
+		if phcrit ~= stcrit then
+			ts:add((", Steam %d%%"):tformat(stcrit))
+		end
 	end
 
-	-- acc, def
-	ts:add(true, offense_color, "Accuracy#FFFFFF#: ", self:colorStats("combatAttack"))
-	ts:add("  ", defense_color, "Defense#FFFFFF#: ", self:colorStats("combatDefense"))
-	-- ADD: ranged defense
-	if self:combatDefense(true) ~= self:combatDefenseRanged(true) then
-		ts:add(" / ", self:colorStats("combatDefenseRanged"))
+	-- crit mult
+	if (150 + (self.combat_critical_power or 0) ) > getThreshold('crit_mult', 150) then
+		ts:add(true, offense_color, "Crit.Mult#WHITE#: ", ("%d%%"):format(150 + (self.combat_critical_power or 0) ))
 	end
-	-- predator
-	if self ~= game.player and game.player:knowTalent(self.T_PREDATOR) then
-		local predatorcount = game.player.predator_type_history and game.player.predator_type_history[self.type] or 0
-		local tp = game.player:getTalentFromId(game.player.T_PREDATOR)
-		local predatorATK = tp.getATK(game.player, tp) * predatorcount
-		local predatorAPR = tp.getAPR(game.player, tp) * predatorcount
-		ts:add(true, {"color", 0, 255, 128}, ("#ffa0ff#Predator: Acc +%d, APR +%d#LAST#"):format(predatorATK, predatorAPR))
-	end
-	ts:add({"color", "WHITE"})
+
+	-- ADD: crit shrug off / crit reduction
+	ts:add(true, defense_color, "Crit.Shrug#WHITE#: ", tostring(math.floor(self:attr("ignore_direct_crits") or 0)), '%,', defense_color, " Reduct#WHITE#: ", tostring(math.floor(self:combatCritReduction())) ,'%')
 
 	-- weapon type: damage, apr, crit, range
 	-- short name of weapon
@@ -416,128 +452,84 @@ function _M:tooltip(x, y, seen_by)
 		ts:add(true, defense_color, "Melee Retaliation#WHITE#: ", {"color", "RED"}, tostring(math.floor(retal)), {"color", "WHITE"})
 	end
 
-	-- ADD: crit rate
-	local phcrit = self:combatCrit(nil)
-	local spcrit = self:combatSpellCrit()
-	local mcrit = self:combatMindCrit()
-	ts:add(true, offense_color, ("Crit#WHITE#: %d%%"):tformat(phcrit))
-	if phcrit ~= spcrit then
-		ts:add((", Spell %d%%"):tformat(spcrit))
+	-- empty line for readability
+	ts:add(true)
+
+	-- or predator
+	if self ~= game.player and game.player:knowTalent(self.T_PREDATOR) then
+		local predatorcount = game.player.predator_type_history and game.player.predator_type_history[self.type] or 0
+		local tp = game.player:getTalentFromId(game.player.T_PREDATOR)
+		local predatorATK = tp.getATK(game.player, tp) * predatorcount
+		local predatorAPR = tp.getAPR(game.player, tp) * predatorcount
+		ts:add(("#SALMON#Predator: Acc +%d, APR +%d#LAST#"):format(predatorATK, predatorAPR))
 	end
-	if phcrit ~= mcrit then
-		ts:add((", Mind %d%%"):tformat(mcrit))
+	ts:add({"color", "WHITE"})
+	-- acc, def
+	ts:add(true, offense_color, "Accuracy#FFFFFF#: ", self:colorStats("combatAttack"))
+	-- MAYBE: Accuracy with max predator bonus
+	-- local tp = game.player:getTalentFromId(game.player.T_PREDATOR)
+	-- local predatorAcc = tp.getATK(game.player, tp) * tp.getTypeKillMax()
+	ts:add("  ", defense_color, "Defense#FFFFFF#: ", self:colorStats("combatDefense"))
+	-- ADD: ranged defense
+	if self:combatDefense(true) ~= self:combatDefenseRanged(true) then
+		ts:add(" / ", self:colorStats("combatDefenseRanged"))
 	end
+
+	-- power, save
+	ts:add(true, offense_color, "P. power#FFFFFF#: ", self:colorStats("combatPhysicalpower"))
+	ts:add("  ", defense_color, "P. save#FFFFFF#: ", self:colorStats("combatPhysicalResist"))
+	ts:add(true, offense_color, "S. power#FFFFFF#: ", self:colorStats("combatSpellpower"))
+	ts:add("  ", defense_color, "S. save#FFFFFF#: ", self:colorStats("combatSpellResist"))
+	ts:add(true, offense_color, "M. power#FFFFFF#: ", self:colorStats("combatMindpower"))
+	ts:add("  ", defense_color, "M. save#FFFFFF#: ", self:colorStats("combatMentalResist"))
+	-- ADD: steam power
 	if self:knowTalent(self.T_STEAM_POOL) then
-		local stcrit = self:combatSteamCrit()
-		if phcrit ~= stcrit then
-			ts:add((", Steam %d%%"):tformat(stcrit))
+		ts:add(true, offense_color, "Steam.power#FFFFFF#: ", self:colorStats("combatSteampower"))
+	end
+
+	-- ADD: status immunity
+	-- TODO: configurable
+	local immune_types = {"stun", "confusion", "poison", "disease", "blind", "silence", "disarm", "cut", "pin", "sleep", "fear", "knockback", "stone", "teleport", "instakill"}
+	local immunes = {}
+
+	for _, type in pairs(immune_types) do
+		local v = self:attr(type.."_immune")
+		local threshold = getThreshold('immunity')
+		if v and v*100 > threshold then
+			immunes[#immunes+1] = {type=type, v=math.floor(v*100)}
+		end
+	end
+	if #immunes > 0 then
+		-- table.sort(immunes, function(a, b) return a.v > b.v end)
+		ts:add(true, defense_color, "Immunity#WHITE#:")
+		local first = true
+		for _, t in pairs(immunes) do
+			if not first then ts:add(",") end
+			first = false
+			local color = "#WHITE#"
+			if t.type == "confusion" or t.type == "silence" or t.type == "sleep" or t.type == "fear" then
+				color = "#YELLOW#"
+			elseif t.type == "disease" then
+				color = "#OLIVE_DRAB#"
+			elseif t.type == "stone" or t.type == "teleport" then
+				color = "#DARK_ORCHID#"
+			end
+			ts:add((" %s%s #WHITE#%d%%"):tformat(color, t.type:capitalize(), t.v))
 		end
 	end
 
-	-- crit mult
-	if (150 + (self.combat_critical_power or 0) ) > getThreshold('crit_mult', 150) then
-		ts:add(true, offense_color, "Crit.Mult#WHITE#: ", ("%d%%"):format(150 + (self.combat_critical_power or 0) ))
-	end
-
-	-- ADD: crit shrug off / crit reduction
-	ts:add(true, defense_color, "Crit.Shrug#WHITE#: ", tostring(math.floor(self:attr("ignore_direct_crits") or 0)), '%,', defense_color, " Reduct#WHITE#: ", tostring(math.floor(self:combatCritReduction())) ,'%')
-
-	-- ADD: increased damage
-	local damages = {}
-	for t, v in pairs(self.inc_damage) do
-		local dam = self:combatGetDamageIncrease(t)
-		if math.abs(dam) > getThreshold('damage_mod') then
-			damages[#damages+1] = { type = t, v = dam }
-		end
-	end
-	if #damages > 0 then
-		ts:add(true, offense_color, "Damage#WHITE#:")
-		addDamageList(ts, damages)
-	end
-
-	-- ADD: damage penetration
-	local penetrations = {}
-	for t, v in pairs(self.resists_pen) do
-		local pen = self:combatGetResistPen(t)
-		if pen > getThreshold('damage_pen') then
-			penetrations[#penetrations+1] = { type = t, v = pen }
-		end
-	end
-	if #penetrations > 0 then
-		ts:add(true, offense_color, "Penetration#WHITE#:")
-		addDamageList(ts, penetrations)
-	end
-
-	-- MOV: damage resists
-	-- MOD: color
-	local resists = {}
-	for t, v in pairs(self.resists) do
-		local res = (t == "absolute") and v or self:combatGetResist(t)
-		if math.abs(res) > getThreshold('damage_resist') then
-			resists[#resists+1] = { type = t, v = res }
-		end
-	end
-	if #resists > 0 then
-		ts:add(true, defense_color, "Resist#WHITE#:")
-		addDamageList(ts, resists)
-	end
-	-- Terrasca?
-	if self:attr("speed_resist") then
-		local res = 100 - (util.bound(self.global_speed * self.movement_speed, (100-(self.speed_resist_cap or 70))/100, 1)) * 100
-		if res > 0 then
-			ts:add({"color", "LIGHT_GREEN"}, tostring(math.floor(res)).."%", " ", {"color", "SALMON"}, "from speed", {"color", "LAST"}, true)
-		end
-	end
-
-	-- ADD: damage affinities
-	local affinities = {}
-	for t,v in pairs(self.damage_affinity) do
-		local aff = self:combatGetAffinity(t)
-		if aff > getThreshold('damage_affinity') then
-			affinities[#affinities+1] = { type = t, v = aff }
-		end
-	end
-	if #affinities > 0 then
-		ts:add(true, defense_color, "Affinity#WHITE#:")
-		addDamageList(ts, affinities)
-	end
-
+	-- empty line for readability
+	ts:add(true)
 	-- MOV: move flavor text to NPC.lua
 
 	-- custom?
 	if self.custom_tooltip then
 		local cts = self:custom_tooltip():toTString()
 		if cts then
-			ts:merge(cts)
 			ts:add(true)
+			ts:merge(cts)
 		end
 	end
-
-	-- sustain
-	-- MOD: add dispel type (physical, mental or spell?)
-	local first_sus = true
-	local susmental = tstring{}
-	local susmagical = tstring{}
-	for tid, act in pairs(self.sustain_talents) do
-		if act then
-			local t = self:getTalentFromId(tid)
-			if t then
-				if first_sus then
-					first_sus = false
-					ts:add(true, true, {"color", "ORANGE"}, "Sustained Talents: ",{"color", "WHITE"})
-				end
-				if t.is_mind then
-					susmental:add(true, "- ", {"color", "LIGHT_GREEN"}, t.name or "???", {"color", "YELLOW"}, " (m)", {"color", "WHITE"})
-				elseif t.is_spell then
-					susmagical:add(true, "- ", {"color", "LIGHT_GREEN"}, t.name or "???", {"color", "DARK_ORCHID"}, " (sp)", {"color", "WHITE"})
-				else
-					ts:add(true, "- ", {"color", "LIGHT_GREEN"}, t.name or "???", {"color", "WHITE"}, " (ph)")
-				end
-			end
-		end
-	end
-	ts:merge(susmental)
-	ts:merge(susmagical)
 
 	-- status effects
 	local first_eff = true
@@ -563,7 +555,6 @@ function _M:tooltip(x, y, seen_by)
 
 	for eff_id, p in pairs(self.tmp) do
 		if first_eff then
-			if first_sus then ts:add(true) end
 			first_eff = false
 			ts:add(true, {"color", "ORANGE"}, "Temporary Status Effects: ",{"color", "WHITE"})
 		end
@@ -608,6 +599,35 @@ function _M:tooltip(x, y, seen_by)
 	ts:merge(effmental_good)
 	ts:merge(effmagical_good)
 	ts:merge(effother_good)
+
+	-- sustain
+	-- MOD: add dispel type (physical, mental or spell?)
+	local first_sus = true
+	local susmental = tstring{}
+	local susmagical = tstring{}
+	for tid, act in pairs(self.sustain_talents) do
+		if act then
+			local t = self:getTalentFromId(tid)
+			if t then
+				if first_sus then
+					first_sus = false
+					ts:add(true, {"color", "ORANGE"}, "Sustained Talents: ",{"color", "WHITE"})
+				end
+				if t.is_mind then
+					susmental:add(true, "- ", {"color", "LIGHT_GREEN"}, t.name or "???", {"color", "YELLOW"}, " (m)", {"color", "WHITE"})
+				elseif t.is_spell then
+					susmagical:add(true, "- ", {"color", "LIGHT_GREEN"}, t.name or "???", {"color", "DARK_ORCHID"}, " (sp)", {"color", "WHITE"})
+				else
+					ts:add(true, "- ", {"color", "LIGHT_GREEN"}, t.name or "???", {"color", "WHITE"}, " (ph)")
+				end
+			end
+		end
+	end
+	ts:merge(susmental)
+	ts:merge(susmagical)
+
+	-- empty line for readability
+	if not (first_sus and first_eff) then ts:add(true) end
 
 	-- MOV: faction
 	if show('faction') then
