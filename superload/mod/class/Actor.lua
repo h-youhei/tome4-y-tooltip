@@ -32,6 +32,8 @@ local function colorPercent(percent, offset)
 	end
 end
 
+local offense_color = "#FFD700#"
+local defense_color = "#0080FF#"
 local function addDamageList(ts, list)
 	table.sort(list, function(a, b)
 		if a.type == "all" then return true
@@ -70,7 +72,7 @@ local function addDamageList(ts, list)
 end
 
 local function addWeapon(ts, o, stats, txt)
-	ts:add(true, "#LIGHT_BLUE#", txt, ":#LAST#")
+	ts:add(true, offense_color, txt, "#LAST#:")
 	ts:add((" #RED#%d#LAST#"):tformat(math.floor(stats.dmg)))
 	ts:add((", APR %d"):tformat(stats.apr))
 	ts:add((", Crit %d%%"):tformat(stats.crit))
@@ -302,7 +304,7 @@ function _M:tooltip(x, y, seen_by)
 	end
 	if #immunes > 0 then
 		-- table.sort(immunes, function(a, b) return a.v > b.v end)
-		ts:add(true, {"color","ANTIQUE_WHITE"}, "Immunity:")
+		ts:add(true, defense_color, "Immunity#WHITE#:")
 		local first = true
 		for _, t in pairs(immunes) do
 			if not first then ts:add(",") end
@@ -320,26 +322,26 @@ function _M:tooltip(x, y, seen_by)
 	end
 
 	-- power, save
-	ts:add(true, "#FFD700#P. power#FFFFFF#: ", self:colorStats("combatPhysicalpower"))
-	ts:add("  #0080FF#P. save#FFFFFF#: ", self:colorStats("combatPhysicalResist"))
-	ts:add(true, "#FFD700#S. power#FFFFFF#: ", self:colorStats("combatSpellpower"))
-	ts:add("  #0080FF#S. save#FFFFFF#: ", self:colorStats("combatSpellResist"))
-	ts:add(true, "#FFD700#M. power#FFFFFF#: ", self:colorStats("combatMindpower"))
-	ts:add("  #0080FF#M. save#FFFFFF#: ", self:colorStats("combatMentalResist"))
+	ts:add(true, offense_color, "P. power#FFFFFF#: ", self:colorStats("combatPhysicalpower"))
+	ts:add("  ", defense_color, "P. save#FFFFFF#: ", self:colorStats("combatPhysicalResist"))
+	ts:add(true, offense_color, "S. power#FFFFFF#: ", self:colorStats("combatSpellpower"))
+	ts:add("  ", defense_color, "S. save#FFFFFF#: ", self:colorStats("combatSpellResist"))
+	ts:add(true, offense_color, "M. power#FFFFFF#: ", self:colorStats("combatMindpower"))
+	ts:add("  ", defense_color, "M. save#FFFFFF#: ", self:colorStats("combatMentalResist"))
 	-- ADD: steam power
 	if self:knowTalent(self.T_STEAM_POOL) then
-		ts:add(true, "#FFD700#Steam.power#FFFFFF#: ", self:colorStats("combatSteampower"))
+		ts:add(true, offense_color, "Steam.power#FFFFFF#: ", self:colorStats("combatSteampower"))
 	end
 
 	-- acc, def
-	ts:add(true, "#FFD700#Accuracy#FFFFFF#: ", self:colorStats("combatAttack"))
-	ts:add("  #0080FF#Defense#FFFFFF#: ", self:colorStats("combatDefense"))
+	ts:add(true, offense_color, "Accuracy#FFFFFF#: ", self:colorStats("combatAttack"))
+	ts:add("  ", defense_color, "Defense#FFFFFF#: ", self:colorStats("combatDefense"))
 	-- ADD: ranged defense
 	if self:combatDefense(true) ~= self:combatDefenseRanged(true) then
 		ts:add(" / ", self:colorStats("combatDefenseRanged"))
 	end
 	-- predator
-	if game.player:knowTalent(self.T_PREDATOR) then
+	if self ~= game.player and game.player:knowTalent(self.T_PREDATOR) then
 		local predatorcount = game.player.predator_type_history and game.player.predator_type_history[self.type] or 0
 		local tp = game.player:getTalentFromId(game.player.T_PREDATOR)
 		local predatorATK = tp.getATK(game.player, tp) * predatorcount
@@ -347,9 +349,6 @@ function _M:tooltip(x, y, seen_by)
 		ts:add(true, {"color", 0, 255, 128}, ("#ffa0ff#Predator: Acc +%d, APR +%d#LAST#"):format(predatorATK, predatorAPR))
 	end
 	ts:add({"color", "WHITE"})
-
-	-- armor (hardiness)
-	ts:add(true, "Armour: ", tostring(math.floor(self:combatArmor())), ' (', tostring(math.floor(self:combatArmorHardiness())), '%)')
 
 	-- weapon type: damage, apr, crit, range
 	-- short name of weapon
@@ -378,8 +377,8 @@ function _M:tooltip(x, y, seen_by)
 		inv = self:getInven("QUIVER")
 		if inv then
 			for i, o in ipairs(inv) do
-				ts:add(true)
-				local tst = ("#LIGHT_BLUE#Ammo:#LAST#"..o:getShortName({force_id=true, do_color=true, no_add_name=true})):toTString()
+				ts:add(true, offense_color)
+				local tst = ("Ammo#LAST#:"..o:getShortName({force_id=true, do_color=true, no_add_name=true})):toTString()
 				tst = tst:splitLines(game.tooltip.max-1, game.tooltip.font, 2)
 				tst = tst:extractLines(true)[1]
 				table.append(ts, tst)
@@ -402,6 +401,9 @@ function _M:tooltip(x, y, seen_by)
 	end
 	ts:add({"color", "WHITE"})
 
+	-- armor (hardiness)
+	ts:add(true, defense_color, "Armour#WHITE#: ", tostring(math.floor(self:combatArmor())), ' (', tostring(math.floor(self:combatArmorHardiness())), '%)')
+
 	-- melee retaliation
 	local retal = 0
 	local threshold = getThreshold('melee_ret') * game.player.max_life / 100
@@ -411,14 +413,14 @@ function _M:tooltip(x, y, seen_by)
 		end
 	end
 	if retal > threshold then
-		ts:add(true, "Melee Retaliation: ", {"color", "RED"}, tostring(math.floor(retal)), {"color", "WHITE"})
+		ts:add(true, defense_color, "Melee Retaliation#WHITE#: ", {"color", "RED"}, tostring(math.floor(retal)), {"color", "WHITE"})
 	end
 
 	-- ADD: crit rate
 	local phcrit = self:combatCrit(nil)
 	local spcrit = self:combatSpellCrit()
 	local mcrit = self:combatMindCrit()
-	ts:add(true, ("Crit: %d%%"):tformat(phcrit))
+	ts:add(true, offense_color, ("Crit#WHITE#: %d%%"):tformat(phcrit))
 	if phcrit ~= spcrit then
 		ts:add((", Spell %d%%"):tformat(spcrit))
 	end
@@ -434,11 +436,11 @@ function _M:tooltip(x, y, seen_by)
 
 	-- crit mult
 	if (150 + (self.combat_critical_power or 0) ) > getThreshold('crit_mult', 150) then
-		ts:add(true, "Crit.Mult: ", ("%d%%"):format(150 + (self.combat_critical_power or 0) ))
+		ts:add(true, offense_color, "Crit.Mult#WHITE#: ", ("%d%%"):format(150 + (self.combat_critical_power or 0) ))
 	end
 
 	-- ADD: crit shrug off / crit reduction
-	ts:add(true, "Crit.Shrug: ", tostring(math.floor(self:attr("ignore_direct_crits") or 0)), '%, Reduct: ', tostring(math.floor(self:combatCritReduction())) ,'%')
+	ts:add(true, defense_color, "Crit.Shrug#WHITE#: ", tostring(math.floor(self:attr("ignore_direct_crits") or 0)), '%,', defense_color, " Reduct#WHITE#: ", tostring(math.floor(self:combatCritReduction())) ,'%')
 
 	-- ADD: increased damage
 	local damages = {}
@@ -449,7 +451,7 @@ function _M:tooltip(x, y, seen_by)
 		end
 	end
 	if #damages > 0 then
-		ts:add(true, {"color", "ANTIQUE_WHITE"}, "Damage:")
+		ts:add(true, offense_color, "Damage#WHITE#:")
 		addDamageList(ts, damages)
 	end
 
@@ -462,7 +464,7 @@ function _M:tooltip(x, y, seen_by)
 		end
 	end
 	if #penetrations > 0 then
-		ts:add(true, {"color", "ANTIQUE_WHITE"}, "Penetration:")
+		ts:add(true, offense_color, "Penetration#WHITE#:")
 		addDamageList(ts, penetrations)
 	end
 
@@ -476,7 +478,7 @@ function _M:tooltip(x, y, seen_by)
 		end
 	end
 	if #resists > 0 then
-		ts:add(true, {"color", "ANTIQUE_WHITE"}, "Resist:")
+		ts:add(true, defense_color, "Resist#WHITE#:")
 		addDamageList(ts, resists)
 	end
 	-- Terrasca?
@@ -496,7 +498,7 @@ function _M:tooltip(x, y, seen_by)
 		end
 	end
 	if #affinities > 0 then
-		ts:add({"color", "ANTIQUE_WHITE"}, "Affinity:")
+		ts:add(true, defense_color, "Affinity#WHITE#:")
 		addDamageList(ts, affinities)
 	end
 
