@@ -143,8 +143,27 @@ function _M:tooltip(x, y, seen_by)
 	end
 
 	-- MOV: size
-	if show('size') then
-		ts:add(true, "Size: ", self:TextSizeCategory())
+	-- MOD: size related talents' helper
+	local big_plus = self:attr("allow_mainhand_2h_in_1h") or self:knowTalent(self.T_TITAN_S_SMASH)
+	local bigger = self.size_category - 4
+	local known = self:knowTalent(self.T_CLINCH) or self:knowTalent(self.T_SWALLOW) or self:knowTalent(self.T_GRAPPLING_HOOK)
+	if self == game.player then
+		if showAppropriate('size', big_plus or known) then
+			ts:add(true, "Size: ", self:TextSizeCategory())
+			if big_plus and bigger > 0 then ts:add((" (big+%d)"):tformat(bigger)) end
+		end
+	else
+		local player_known = game.player:knowTalent(self.T_CLINCH) or game.player:knowTalent(self.T_SWALLOW) or game.player:knowTalent(self.T_GRAPPLING_HOOK)
+		if showAppropriate('size', big_plus or known or player_known) then
+			ts:add(true, "Size: ", self:TextSizeCategory())
+			if known or player_known then
+				local diff = self.size_category - game.player.size_category
+				local diff_color = diff > 0 and "#LIGHT_RED#" or "#LIGHT_GREEN#"
+				if diff == 0 then diff_color = "#WHITE#" end
+				ts:add((" (yours%s %+d#WHITE#)"):tformat(diff_color, diff))
+			end
+			if big_plus and bigger > 0 then ts:add((" (big+%d)"):tformat(bigger)) end
+		end
 	end
 	-- ogre_wield self:attr("allow_mainhand_2h_in_1h")
 -- 	sand-drake/swallow

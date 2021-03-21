@@ -8,7 +8,7 @@ if type(config.settings.tome.y_tooltip_type) == 'nil' then
 end
 
 if type(config.settings.tome.y_tooltip_size) == 'nil' then
-	config.settings.tome.y_tooltip_size = 'both'
+	config.settings.tome.y_tooltip_size = 'appropriate'
 end
 
 if type(config.settings.tome.y_tooltip_prodigy) == 'nil' then
