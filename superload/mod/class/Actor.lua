@@ -165,11 +165,6 @@ function _M:tooltip(x, y, seen_by)
 			if big_plus and bigger > 0 then ts:add((" (big+%d)"):tformat(bigger)) end
 		end
 	end
-	-- ogre_wield self:attr("allow_mainhand_2h_in_1h")
--- 	sand-drake/swallow
--- 	artifice/rogue's tools/grappling hook
--- 	you shall be my weapon
--- 	grappling/clinch
 
 	-- level rank
 	-- level
@@ -379,7 +374,7 @@ function _M:tooltip(x, y, seen_by)
 		end
 	end
 
-	-- ADD: crit rate
+	-- ADD: crit chance
 	local phcrit = self:combatCrit(nil)
 	local spcrit = self:combatSpellCrit()
 	local mcrit = self:combatMindCrit()
@@ -407,51 +402,49 @@ function _M:tooltip(x, y, seen_by)
 
 	-- weapon type: damage, apr, crit, range
 	-- short name of weapon
-	if show('weapon') then
-		local inv = self:getInven("MAINHAND")
+	local inv = self:getInven("MAINHAND")
+	if inv then
+		for i, o in ipairs(inv) do
+			local stats = self:getCombatStats("mainhand", self.INVEN_MAINHAND, i )
+			addWeapon(ts, o, stats, "Main")
+		end
+	end
+	inv = self:getInven("OFFHAND")
+	if inv then
+		for i, o in ipairs(inv) do
+			local stats = self:getCombatStats("offhand", self.INVEN_OFFHAND, i)
+			addWeapon(ts, o, stats, "Off ")
+		end
+	end
+	inv = self:getInven("PSIONIC_FOCUS")
+	if inv and self:attr("psi_focus_combat") then
+		for i, o in ipairs(inv) do
+			local stats = self:getCombatStats("psionic", self.INVEN_PSIONIC_FOCUS, i)
+			addWeapon(ts, o, stats, "Psi ")
+		end
+	end
+	inv = self:getInven("QUIVER")
+	if inv then
+		for i, o in ipairs(inv) do
+			ts:add(true, offense_color)
+			local tst = ("Ammo#LAST#:"..o:getShortName({force_id=true, do_color=true, no_add_name=true})):toTString()
+			tst = tst:splitLines(game.tooltip.max-1, game.tooltip.font, 2)
+			tst = tst:extractLines(true)[1]
+			table.append(ts, tst)
+		end
+	end
+	-- TODO: no weapon slot mobs don't show unarmed dmg etc
+	if self:isUnarmed() then
+		inv = self:getInven("HANDS")
 		if inv then
+			-- Gloves merge to the Actor.combat table so we have to special case this to display the object but look at self.combat for the damage
 			for i, o in ipairs(inv) do
-				local stats = self:getCombatStats("mainhand", self.INVEN_MAINHAND, i )
-				addWeapon(ts, o, stats, "Main")
-			end
-		end
-		inv = self:getInven("OFFHAND")
-		if inv then
-			for i, o in ipairs(inv) do
-				local stats = self:getCombatStats("offhand", self.INVEN_OFFHAND, i)
-				addWeapon(ts, o, stats, "Off ")
-			end
-		end
-		inv = self:getInven("PSIONIC_FOCUS")
-		if inv and self:attr("psi_focus_combat") then
-			for i, o in ipairs(inv) do
-				local stats = self:getCombatStats("psionic", self.INVEN_PSIONIC_FOCUS, i)
-				addWeapon(ts, o, stats, "Psi ")
-			end
-		end
-		inv = self:getInven("QUIVER")
-		if inv then
-			for i, o in ipairs(inv) do
-				ts:add(true, offense_color)
-				local tst = ("Ammo#LAST#:"..o:getShortName({force_id=true, do_color=true, no_add_name=true})):toTString()
-				tst = tst:splitLines(game.tooltip.max-1, game.tooltip.font, 2)
-				tst = tst:extractLines(true)[1]
-				table.append(ts, tst)
-			end
-		end
-		-- TODO: no weapon slot mobs don't show unarmed dmg etc
-		if self:isUnarmed() then
-			inv = self:getInven("HANDS")
-			if inv then
-				-- Gloves merge to the Actor.combat table so we have to special case this to display the object but look at self.combat for the damage
-				for i, o in ipairs(inv) do
-					local stats = self:getCombatStats("barehand", self.INVEN_MAINHAND, i)
-					addWeapon(ts, o, stats, "Unarmed")
-				end
-			else
 				local stats = self:getCombatStats("barehand", self.INVEN_MAINHAND, i)
-				addWeapon(ts, nil, stats, "Unarmed")
+				addWeapon(ts, o, stats, "Unarmed")
 			end
+		else
+			local stats = self:getCombatStats("barehand", self.INVEN_MAINHAND, i)
+			addWeapon(ts, nil, stats, "Unarmed")
 		end
 	end
 	ts:add({"color", "WHITE"})
