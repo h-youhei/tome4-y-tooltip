@@ -1,5 +1,16 @@
 require "engine.class"
 
+local KeyBind = require "engine.KeyBind"
+
+class:bindHook("ToME:load", function(self, data)
+	KeyBind:defineAction{
+		default = { "sym:=c:false:false:true:false" },
+		type = "SHOW_CHARACTER_SHEET_TALENT_CURSOR",
+		group = "actions",
+		name = _t"Show character talents (actor @ cursor)",
+	}
+end)
+
 dofile("/data-y-tooltip/settings.lua")
 
 class:bindHook("GameOptions:tabs", function(self, data)
@@ -130,7 +141,8 @@ class:bindHook("GameOptions:generateList", function(self, data)
 
 	createDisplayOption("type", "Show Type", [[Whether to display Character Type and Gender.]])
 
-	createDisplayOption("size", "Show Size", [[Whether to display Character Size.]])
+	createConditionalOption("size", "Show Size", [[Whether to display Character Size.]],
+		[[show only when size related Talents are involved. Even when not you can check size by pressing Ctrl.)
 
 	createDisplayOption("prodigy", "Show Prodigies", [[Whether to display Prodigies.]])
 
@@ -183,7 +195,7 @@ If set to very high value, Damage Affinities is never shown.
 
 	createConditionalOption("stealth", "Show Stealth/Invisible helper",
 		[[Whether to display information that helps player when using Stealth or Invisible. That is your Stealth/Invisible value and enemy's See Stealth/Invisible.]],
-		[[show only when player is stealthed or invisible. You can check Enemy's See Stealth/Invisible while player is not stealthed or invisible by pressing Ctrl.]])
+		[[show only when player is stealthed or invisible. Even when not you can check Enemy's See Stealth/Invisible while player is not stealthed or invisible by pressing Ctrl.]])
 
 	createDisplayOption("vs_stealth", "Show vs Stealth/Invisible", [[Whether to display information that helps player when fighting Stealthed/Invisible enemies. That is your See Stealth/Invisible and enemy's Stealth/Invisible value.]])
 
