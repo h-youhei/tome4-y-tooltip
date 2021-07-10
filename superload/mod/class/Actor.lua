@@ -272,9 +272,13 @@ function _M:tooltip(x, y, seen_by)
 	ts:add(true)
 	-- ADD: increased damage
 	local damages = {}
+	local dam_all = 0
+	if self.inc_damage['all'] then
+		dam_all = math.floor(self.inc_damage['all'])
+	end
 	for t, v in pairs(self.inc_damage) do
-		local dam = self:combatGetDamageIncrease(t)
-		if math.abs(dam) > getThreshold('damage_mod') then
+		local dam = math.floor(self:combatGetDamageIncrease(t))
+		if math.abs(dam) > getThreshold('damage_mod') and (t == 'all' or dam ~= dam_all) then
 			damages[#damages+1] = { type = t, v = dam }
 		end
 	end
@@ -285,9 +289,13 @@ function _M:tooltip(x, y, seen_by)
 
 	-- ADD: damage penetration
 	local penetrations = {}
+	local pen_all = 0
+	if self.resists_pen['all'] then
+		pen_all = math.floor(self.resists_pen['all'])
+	end
 	for t, v in pairs(self.resists_pen) do
-		local pen = self:combatGetResistPen(t)
-		if pen > getThreshold('damage_pen') then
+		local pen = math.floor(self:combatGetResistPen(t))
+		if pen > getThreshold('damage_pen') and (t == 'all' or pen ~= pen_all) then
 			penetrations[#penetrations+1] = { type = t, v = pen }
 		end
 	end
@@ -299,9 +307,14 @@ function _M:tooltip(x, y, seen_by)
 	-- MOV: damage resists
 	-- MOD: color
 	local resists = {}
+	local res_all = 0
+	if self.resists['all'] then
+		res_all = math.floor(self.resists['all'])
+	end
 	for t, v in pairs(self.resists) do
 		local res = (t == "absolute") and v or self:combatGetResist(t)
-		if math.abs(res) > getThreshold('damage_resist') then
+		res = math.floor(res)
+		if math.abs(res) > getThreshold('damage_resist') and (t == 'all' or t == 'absolute' or res ~= res_all) then
 			resists[#resists+1] = { type = t, v = res }
 		end
 	end
@@ -309,6 +322,7 @@ function _M:tooltip(x, y, seen_by)
 		ts:add(true, defense_color, "Resist#WHITE#:")
 		addDamageList(ts, resists)
 	end
+
 	-- Terrasca?
 	if self:attr("speed_resist") then
 		local res = 100 - (util.bound(self.global_speed * self.movement_speed, (100-(self.speed_resist_cap or 70))/100, 1)) * 100
@@ -319,9 +333,13 @@ function _M:tooltip(x, y, seen_by)
 
 	-- ADD: damage affinities
 	local affinities = {}
+	local aff_all = 0
+	if self.damage_affinity['all'] then
+		aff_all = math.floor(self.damage_affinity['all'])
+	end
 	for t,v in pairs(self.damage_affinity) do
-		local aff = self:combatGetAffinity(t)
-		if aff > getThreshold('damage_affinity') then
+		local aff = math.floor(self:combatGetAffinity(t))
+		if aff > getThreshold('damage_affinity') and (t ~= 'all' or aff ~= aff_all) then
 			affinities[#affinities+1] = { type = t, v = aff }
 		end
 	end
