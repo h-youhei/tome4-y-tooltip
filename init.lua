@@ -21,7 +21,7 @@ long_name = "Y Tooltip"
 short_name = "y-tooltip"
 for_module = "tome"
 version = {1,7,2}
-addon_version = {1,1,0}
+addon_version = {1,1,1}
 weight = 160
 author = {'hukumitu.youhei@gmail.com'}
 homepage = 'https://hkmtyh.com'
@@ -106,7 +106,7 @@ And color labels to weak-group offense and defense.
 
 Color DamageType. And change colors that hard to see.
 
-Since name and level of talents is not enough, add a way to open the actor's talents tab of character sheet quickly instead of displaying talents in the actor's tooltip.
+Since name and level of talents is not enough information, add a way to open the actor's talents tab of character sheet quickly instead of displaying talents in the actor's tooltip.
 
 Github: https://github.com/h-youhei/tome4-y-tooltip
 
